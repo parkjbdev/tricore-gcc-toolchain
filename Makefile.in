@@ -102,7 +102,7 @@ install:
 	@mkdir -p "$(LOCAL_PREFIX)" "$(LOCAL_BINDIR)"
 	@if [ "$$(cd "$(INSTALL_DIR)" && pwd -P)" != "$$(cd "$(LOCAL_PREFIX)" && pwd -P)" ]; then \
 		echo "copying $(INSTALL_DIR) to $(LOCAL_PREFIX)"; \
-		rsync -a --delete "$(INSTALL_DIR)/" "$(LOCAL_PREFIX)/"; \
+		rsync -aH --delete "$(INSTALL_DIR)/" "$(LOCAL_PREFIX)/"; \
 	fi
 	@for f in "$(LOCAL_PREFIX)"/bin/*; do ln -sfn "$$f" "$(LOCAL_BINDIR)/$$(basename "$$f")"; done
 	@echo "linked $$(ls "$(LOCAL_PREFIX)"/bin | wc -l | tr -d ' ') programs into $(LOCAL_BINDIR)"
