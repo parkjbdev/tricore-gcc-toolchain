@@ -46,7 +46,14 @@ brew install bison expat
 mkdir build && cd build
 ../configure --prefix=/path/to/prefix --disable-libstdcxx --disable-debug
 make -j$(sysctl -n hw.ncpu) stamps/build-gcc-stage2 stamps/build-gdb MAKEINFO=true
+make install
 ```
+
+`make install` copies the finished prefix to `~/.local/share/tricore-gcc-toolchain`
+(`LOCAL_PREFIX`) and links every program into `~/.local/bin` (`LOCAL_BINDIR`);
+`make uninstall` removes both. The toolchain finds its parts relative to the real
+location of its programs, so it works through the links and the build tree can be
+removed afterwards.
 
 The Makefile puts Homebrew's bison first on PATH for GDB (macOS' bison 2.3 cannot
 generate its parsers), links expat statically for GDB's XML support (target

@@ -89,6 +89,35 @@ endif
 
 all: stamps/build-qemu stamps/build-gcc-stage2
 
+# make install: copies the finished toolchain (the configure prefix, which the
+# build installs into as it goes) to LOCAL_PREFIX and links every program into
+# LOCAL_BINDIR. The toolchain finds its parts relative to the real location of
+# its programs, so it runs from there and through the links; the build tree can
+# be removed afterwards. make uninstall removes the links and LOCAL_PREFIX.
+LOCAL_PREFIX ?= $(HOME)/.local/share/tricore-gcc-toolchain
+LOCAL_BINDIR ?= $(HOME)/.local/bin
+
+install:
+	@[ -x "$(INSTALL_DIR)/bin/tricore-elf-gcc" ] || { echo "no toolchain in $(INSTALL_DIR): build it first (stamps/build-gcc-stage2)" >&2; exit 1; }
+	@mkdir -p "$(LOCAL_PREFIX)" "$(LOCAL_BINDIR)"
+	@if [ "$$(cd "$(INSTALL_DIR)" && pwd -P)" != "$$(cd "$(LOCAL_PREFIX)" && pwd -P)" ]; then \
+		echo "copying $(INSTALL_DIR) to $(LOCAL_PREFIX)"; \
+		rsync -a --delete "$(INSTALL_DIR)/" "$(LOCAL_PREFIX)/"; \
+	fi
+	@for f in "$(LOCAL_PREFIX)"/bin/*; do ln -sfn "$$f" "$(LOCAL_BINDIR)/$$(basename "$$f")"; done
+	@echo "linked $$(ls "$(LOCAL_PREFIX)"/bin | wc -l | tr -d ' ') programs into $(LOCAL_BINDIR)"
+	@case ":$$PATH:" in *":$(LOCAL_BINDIR):"*) ;; *) echo "note: $(LOCAL_BINDIR) is not on PATH";; esac
+
+# Only links that point into LOCAL_PREFIX are removed, and LOCAL_PREFIX only if
+# it holds this toolchain.
+uninstall:
+	@for l in "$(LOCAL_BINDIR)"/*; do \
+		if [ -L "$$l" ]; then case "$$(readlink "$$l")" in "$(LOCAL_PREFIX)"/*) rm -f "$$l";; esac; fi; \
+	done
+	@if [ -x "$(LOCAL_PREFIX)/bin/tricore-elf-gcc" ]; then rm -r "$(LOCAL_PREFIX)" && echo "removed $(LOCAL_PREFIX)"; fi
+
+.PHONY: install uninstall
+
 clean-binutils-tc:
 	rm -rf build-binutils-tc stamps/build-binutils-tc
 
