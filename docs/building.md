@@ -31,7 +31,28 @@ mkdir build && cd build
 make -j$(nproc) stamps/build-gcc-stage2
 ```
 
-This will build and install everything into `/path/to/prefix`.
+This will build and install everything into `/path/to/prefix`. GDB is a separate target:
+
+```sh
+make -j$(nproc) stamps/build-gdb
+```
+
+### macOS
+
+Apple clang builds it without extra host flags. With Homebrew:
+
+```sh
+brew install bison expat
+mkdir build && cd build
+../configure --prefix=/path/to/prefix --disable-libstdcxx --disable-debug
+make -j$(sysctl -n hw.ncpu) stamps/build-gcc-stage2 stamps/build-gdb MAKEINFO=true
+```
+
+The Makefile puts Homebrew's bison first on PATH for GDB (macOS' bison 2.3 cannot
+generate its parsers), links expat statically for GDB's XML support (target
+descriptions and memory maps from e.g. OpenOCD), and leaves zstd out so the install
+folder links nothing from Homebrew and can be copied or moved. `MAKEINFO=true` skips
+the documentation when texinfo is not installed.
 
 It is also possible to compile single components of the toolchain. For further information on the available options, refer to `configure` script help page and
 the [Makefile](https://github.com/NoMore201/tricore-gcc-toolchain/blob/main/Makefile.in).

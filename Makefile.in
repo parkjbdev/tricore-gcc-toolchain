@@ -46,6 +46,19 @@ ICONV_PACKAGE := libiconv-$(ICONV_VERSION).tar.gz
 ICONV_SRCDIR := $(builddir)/libiconv-$(ICONV_VERSION)
 ICONV_DOWNLOAD_URL := https://gcc.gnu.org/pub/gcc/infrastructure/$(ICONV_PACKAGE)
 
+# GDB on macOS (Homebrew): macOS' bison 2.3 generates parsers that no longer
+# compile, so brew's bison goes first on PATH for the GDB build. expat gives GDB
+# XML support (target descriptions, memory maps, e.g. from OpenOCD); it is linked
+# statically (--with-libexpat-type=static below), so install/ stays copyable.
+# zstd is left out: configure would otherwise link brew's libzstd dynamically.
+#   brew install bison expat
+ifeq ($(shell uname -s),Darwin)
+	GDB_BISON := $(shell brew --prefix bison 2>/dev/null)
+	GDB_EXPAT := $(shell brew --prefix expat 2>/dev/null)
+	GDB_PATH := $(if $(GDB_BISON),$(GDB_BISON)/bin:)
+	GDB_HOST_FLAGS := $(if $(GDB_EXPAT),--with-libexpat-prefix=$(GDB_EXPAT)) --without-zstd
+endif
+
 ifeq ($(CONFIGURE_HOST),--host=x86_64-w64-mingw32)
 	NCURSES_FLAGS := --disable-home-terminfo \
 		--enable-term-driver \
@@ -530,12 +543,13 @@ stamps/build-iconv: $(ICONV_SRCDIR)
 stamps/build-gdb: $(BINUTILS_SRCDIR) stamps/build-mpc stamps/build-iconv
 	rm -rf $@ $(notdir $@)
 	mkdir $(notdir $@)
-	cd $(notdir $@) && $</configure \
+	cd $(notdir $@) && PATH="$(GDB_PATH)$$PATH" $</configure \
 		--target=tricore-elf \
 		--enable-targets=mcs-elf \
 		--program-prefix=tricore-elf- \
 		--prefix=$(INSTALL_DIR)/deps \
 		$(CONFIGURE_HOST) \
+		$(GDB_HOST_FLAGS) \
 		--with-gmp-include=$(INSTALL_DIR)/deps/include \
 		--with-gmp-lib=$(INSTALL_DIR)/deps/lib \
 		--with-mpc-include=$(INSTALL_DIR)/deps/include \
@@ -569,6 +583,6 @@ stamps/build-gdb: $(BINUTILS_SRCDIR) stamps/build-mpc stamps/build-iconv
 		CFLAGS="$(CFLAGS)" \
 		CXXFLAGS="$(CXXFLAGS)" \
 		LDFLAGS="$(LDFLAGS) -L$(INSTALL_DIR)/deps/lib"
-	$(MAKE) -C $(notdir $@)
-	$(MAKE) -C $(notdir $@) prefix=$(INSTALL_DIR) install
+	PATH="$(GDB_PATH)$$PATH" $(MAKE) -C $(notdir $@)
+	PATH="$(GDB_PATH)$$PATH" $(MAKE) -C $(notdir $@) prefix=$(INSTALL_DIR) install
 	mkdir -p $(dir $@) && touch $@
